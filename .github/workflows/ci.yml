@@ -1,0 +1,50 @@
+name: Pruebas Laravel
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'web/**'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'web/**'
+      - '.github/workflows/ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas-web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v7
+
+      - name: Configurar PHP
+        uses: shivammathur/setup-php@2.37.2
+        with:
+          php-version: '8.5'
+          extensions: mbstring, sqlite3
+          coverage: none
+
+      - name: Instalar dependencias
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Preparar entorno
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          touch database/database.sqlite
+          php artisan migrate --force
+
+      - name: Verificar dependencias
+        run: composer audit
+
+      - name: Ejecutar pruebas
+        run: php artisan test --compact
