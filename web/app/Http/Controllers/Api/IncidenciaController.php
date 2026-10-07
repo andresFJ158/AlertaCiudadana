@@ -26,8 +26,7 @@ class IncidenciaController extends Controller
     public function store(
         StoreIncidenciaRequest $request,
         CreateIncidenciaAction $createIncidencia,
-    ): JsonResponse
-    {
+    ): JsonResponse {
         $incidencia = $createIncidencia->handle(
             $request->safe()->only(['categoria_id', 'descripcion', 'latitud', 'longitud']),
             $request->file('foto'),

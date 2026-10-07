@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use App\EstadoIncidencia;
+use Database\Factories\IncidenciaFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Incidencia extends Model
 {
-    /** @use HasFactory<\Database\Factories\IncidenciaFactory> */
+    /** @use HasFactory<IncidenciaFactory> */
     use HasFactory;
 
     /** @var list<string> */
