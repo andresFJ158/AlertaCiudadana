@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/incident_service.dart';
 
 class RegistroScreen extends StatefulWidget {
@@ -15,6 +17,48 @@ class _RegistroScreenState extends State<RegistroScreen> {
   Position? _posicionActual;
   List<XFile> _evidencias = [];
   final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarBorrador(); // Intenta recuperar datos no enviados al iniciar la pantalla
+  }
+
+  Future<void> _cargarBorrador() async {
+    final prefs = await SharedPreferences.getInstance();
+    final borradorString = prefs.getString('borrador_incidente');
+    
+    if (borradorString != null) {
+      final borrador = jsonDecode(borradorString);
+      setState(() {
+        _categoria = borrador['categoria'] ?? 'Baches';
+        _descripcion = borrador['descripcion'] ?? '';
+        // Las rutas de imágenes se recuperan como XFile
+        if (borrador['evidencias'] != null) {
+          List<dynamic> rutas = borrador['evidencias'];
+          _evidencias = rutas.map((ruta) => XFile(ruta.toString())).toList();
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Borrador local cargado.')),
+      );
+    }
+  }
+
+  Future<void> _guardarBorrador() async {
+    final prefs = await SharedPreferences.getInstance();
+    final borrador = {
+      'categoria': _categoria,
+      'descripcion': _descripcion,
+      'evidencias': _evidencias.map((e) => e.path).toList(),
+    };
+    await prefs.setString('borrador_incidente', jsonEncode(borrador));
+  }
+
+  Future<void> _limpiarBorrador() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('borrador_incidente');
+  }
 
   Future<void> _obtenerUbicacion() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -60,13 +104,15 @@ class _RegistroScreenState extends State<RegistroScreen> {
       String? uuidGenerado = await servicio.registrarIncidente(datosIncidente, rutasImagenes);
 
       if (uuidGenerado != null) {
+        await _limpiarBorrador(); // Borra el respaldo local tras un envío exitoso
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Incidente registrado. UUID: $uuidGenerado')),
         );
         Navigator.pop(context); 
       } else {
+        await _guardarBorrador(); // Guarda los datos si falla la red[cite: 8]
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error de conexión con el servidor.')),
+          SnackBar(content: Text('Error de red. Borrador guardado localmente para reintento.')),
         );
       }
     } else {
@@ -92,6 +138,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
               onChanged: (val) => setState(() => _categoria = val!),
             ),
             TextFormField(
+              initialValue: _descripcion, // Se enlaza al estado para cargar borradores
               decoration: InputDecoration(labelText: 'Descripción'),
               onSaved: (val) => _descripcion = val!,
             ),
